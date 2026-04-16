@@ -68,6 +68,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .cell:hover:not(:disabled) {
@@ -90,6 +92,8 @@
       font-weight: 600;
       cursor: pointer;
       transition: transform 0.15s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
 
     #resetButton:hover { transform: translateY(-2px) scale(1.05); }
@@ -153,11 +157,16 @@
     // --- Audio Logic ---
     function initAudio() {
       if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+          return false;
+        }
+        audioCtx = new AudioContextClass();
       }
       if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
+        audioCtx.resume().catch(() => {});
       }
+      return audioCtx.state === 'running';
     }
 
     function playTone(freq, dur, type = 'triangle') {
@@ -240,8 +249,19 @@
       });
     }
 
-    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+    cells.forEach(cell => {
+      cell.addEventListener('click', handleCellClick);
+      cell.addEventListener('touchend', event => {
+        event.preventDefault();
+        handleCellClick(event);
+      }, { passive: false });
+    });
+
     resetButton.addEventListener('click', resetGame);
+    resetButton.addEventListener('touchend', event => {
+      event.preventDefault();
+      resetGame(event);
+    }, { passive: false });
   </script>
 </body>
 </html>

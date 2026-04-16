@@ -16,19 +16,24 @@ let audioContext;
 
 function getAudioContext() {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      return null;
+    }
+    audioContext = new AudioContextClass();
   }
-  // Resume context if it's suspended (browser security policy)
+
   if (audioContext.state === 'suspended') {
-    audioContext.resume();
+    audioContext.resume().catch(() => {});
   }
+
   return audioContext;
 }
 
 function playTone(frequency, duration, type = 'square') {
   try {
     const context = getAudioContext();
-    if (context.state !== 'running') return; // Safety check
+    if (!context || context.state !== 'running') return;
 
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -55,7 +60,7 @@ function playClickSound(player) {
 function playBuzzerSound() {
   try {
     const context = getAudioContext();
-    if (context.state !== 'running') return;
+    if (!context || context.state !== 'running') return;
 
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -176,7 +181,31 @@ function checkForWinner() {
   });
 }
 
-cells.forEach((cell) => cell.addEventListener('click', handleCellClick));
+function handleInteractiveInput(event) {
+  if (event.cancelable) {
+    event.preventDefault();
+  }
+  handleCellClick(event);
+}
+
+cells.forEach((cell) => {
+  cell.addEventListener('click', handleCellClick);
+  cell.addEventListener('pointerup', handleInteractiveInput, { passive: false });
+  cell.addEventListener('touchend', handleInteractiveInput, { passive: false });
+});
+
 resetButton.addEventListener('click', initializeGame);
+resetButton.addEventListener('pointerup', (event) => {
+  if (event.cancelable) {
+    event.preventDefault();
+  }
+  initializeGame(event);
+}, { passive: false });
+resetButton.addEventListener('touchend', (event) => {
+  if (event.cancelable) {
+    event.preventDefault();
+  }
+  initializeGame(event);
+}, { passive: false });
 
 initializeGame();
