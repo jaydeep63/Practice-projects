@@ -4,14 +4,9 @@ const resetButton = document.getElementById('resetButton');
 const confettiContainer = document.getElementById('confetti');
 
 const winningPatterns = [
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  [0, 4, 8],
-  [2, 4, 6],
+  [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+  [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+  [0, 4, 8], [2, 4, 6],             // Diagonals
 ];
 
 let boardState;
@@ -23,52 +18,60 @@ function getAudioContext() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
+  // Resume context if it's suspended (browser security policy)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
   return audioContext;
 }
 
 function playTone(frequency, duration, type = 'square') {
-  const context = getAudioContext();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
+  try {
+    const context = getAudioContext();
+    if (context.state !== 'running') return; // Safety check
 
-  oscillator.type = type;
-  oscillator.frequency.value = frequency;
-  gain.gain.setValueAtTime(0.001, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.2, context.currentTime + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
 
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + duration + 0.02);
+    oscillator.type = type;
+    oscillator.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.2, context.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
+
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + duration + 0.02);
+  } catch (e) {
+    console.warn("Audio play failed:", e);
+  }
 }
 
 function playClickSound(player) {
-  if (!window.AudioContext && !window.webkitAudioContext) {
-    return;
-  }
-
   const frequency = player === 'X' ? 440 : 660;
   playTone(frequency, 0.1, 'triangle');
 }
 
 function playBuzzerSound() {
-  if (!window.AudioContext && !window.webkitAudioContext) {
-    return;
+  try {
+    const context = getAudioContext();
+    if (context.state !== 'running') return;
+
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.value = 120;
+    gain.gain.setValueAtTime(0.01, context.currentTime);
+    gain.gain.linearRampToValueAtTime(0.16, context.currentTime + 0.05);
+    gain.gain.linearRampToValueAtTime(0.001, context.currentTime + 0.8);
+
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.8);
+  } catch (e) {
+    console.warn("Audio play failed:", e);
   }
-
-  const context = getAudioContext();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-
-  oscillator.type = 'sawtooth';
-  oscillator.frequency.value = 120;
-  gain.gain.setValueAtTime(0.01, context.currentTime);
-  gain.gain.linearRampToValueAtTime(0.16, context.currentTime + 0.05);
-  gain.gain.linearRampToValueAtTime(0.001, context.currentTime + 0.8);
-
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + 0.8);
 }
 
 function createConfettiPiece() {
@@ -98,18 +101,15 @@ function createPopperPiece(x, y) {
 
 function showPartyPoppers() {
   confettiContainer.innerHTML = '';
-
   for (let i = 0; i < 24; i += 1) {
     confettiContainer.appendChild(createConfettiPiece());
   }
-
   const rect = document.body.getBoundingClientRect();
   for (let i = 0; i < 16; i += 1) {
     const x = rect.width * 0.5 + (Math.random() * 220 - 110);
     const y = rect.height * 0.12 + (Math.random() * 40 - 20);
     confettiContainer.appendChild(createPopperPiece(x, y));
   }
-
   setTimeout(() => {
     confettiContainer.innerHTML = '';
   }, 1300);
@@ -136,6 +136,9 @@ function handleCellClick(event) {
   if (!gameActive || boardState[index]) {
     return;
   }
+
+  // Ensure AudioContext is active on the first click
+  getAudioContext();
 
   boardState[index] = currentPlayer;
   cell.textContent = currentPlayer;
