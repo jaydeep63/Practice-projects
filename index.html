@@ -252,33 +252,41 @@
     let isTouchDevice = false;
 
     function getCellFromEvent(event) {
-      if (event.target.classList.contains('cell')) {
-        return event.target;
+      let target = event.target;
+      // If clicked on button, return it directly
+      if (target.tagName === 'BUTTON' && target.classList.contains('cell')) {
+        return target;
       }
-      return event.currentTarget;
+      // Try currentTarget as fallback
+      if (event.currentTarget && event.currentTarget.classList.contains('cell')) {
+        return event.currentTarget;
+      }
+      return target;
     }
 
     function handleCellClick(event) {
       const now = Date.now();
       
-      if (event.type.startsWith('touch')) {
+      // Detect if this is a touch event
+      if (event.type.includes('touch') || event.type.includes('pointer')) {
         isTouchDevice = true;
-        if (event.cancelable) {
-          event.preventDefault();
-        }
       }
       
-      if (event.type === 'click' && isTouchDevice && now - lastInputTime < 500) {
+      // Skip duplicate clicks within 300ms of touch
+      if (event.type === 'click' && isTouchDevice && now - lastInputTime < 300) {
         return;
       }
       
-      if (now - lastInputTime < 100) {
+      // Prevent rapid successive inputs
+      if (now - lastInputTime < 50) {
         return;
       }
       
       lastInputTime = now;
 
       const cell = getCellFromEvent(event);
+      if (!cell || !cell.dataset.index) return;
+      
       const index = cell.dataset.index;
 
       if (!gameActive || boardState[index] !== '') return;
@@ -326,19 +334,22 @@
     }
 
     cells.forEach(cell => {
-      cell.addEventListener('touchstart', handleCellClick, { passive: false, capture: true });
+      cell.addEventListener('touchend', handleCellClick);
+      cell.addEventListener('pointerup', handleCellClick);
       cell.addEventListener('click', handleCellClick);
     });
 
     function handleResetClick(event) {
       const now = Date.now();
-      if (event.type === 'touchstart') {
-        if (event.cancelable) {
-          event.preventDefault();
-        }
+      if (event.type.includes('touch') || event.type.includes('pointer')) {
+        isTouchDevice = true;
       }
       
-      if (event.type === 'click' && isTouchDevice && now - lastInputTime < 500) {
+      if (event.type === 'click' && isTouchDevice && now - lastInputTime < 300) {
+        return;
+      }
+      
+      if (now - lastInputTime < 50) {
         return;
       }
       
@@ -346,7 +357,8 @@
       resetGame();
     }
 
-    resetButton.addEventListener('touchstart', handleResetClick, { passive: false, capture: true });
+    resetButton.addEventListener('touchend', handleResetClick);
+    resetButton.addEventListener('pointerup', handleResetClick);
     resetButton.addEventListener('click', handleResetClick);
 
     resetGame();
