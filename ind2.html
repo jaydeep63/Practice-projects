@@ -200,23 +200,38 @@
     }
 
     // --- Game Logic ---
-    let lastTouchTime = 0;
+    let lastInputTime = 0;
+    let isTouchDevice = false;
 
     function getCellFromEvent(event) {
-      return event.currentTarget || event.target;
+      if (event.target.classList.contains('cell')) {
+        return event.target;
+      }
+      return event.currentTarget;
     }
 
     function handleCellClick(event) {
-      if (event.type === 'touchstart' || event.type === 'pointerdown') {
+      const now = Date.now();
+      
+      // Detect touch vs mouse
+      if (event.type.startsWith('touch')) {
+        isTouchDevice = true;
         if (event.cancelable) {
           event.preventDefault();
         }
-        lastTouchTime = Date.now();
       }
-
-      if (event.type === 'click' && Date.now() - lastTouchTime < 700) {
+      
+      // Skip duplicate clicks (within 500ms of a touch)
+      if (event.type === 'click' && isTouchDevice && now - lastInputTime < 500) {
         return;
       }
+      
+      // Prevent rapid successive inputs
+      if (now - lastInputTime < 100) {
+        return;
+      }
+      
+      lastInputTime = now;
 
       const cell = getCellFromEvent(event);
       const index = cell.dataset.index;
@@ -267,24 +282,28 @@
     }
 
     cells.forEach(cell => {
+      cell.addEventListener('touchstart', handleCellClick, { passive: false, capture: true });
       cell.addEventListener('click', handleCellClick);
-      cell.addEventListener('pointerdown', handleCellClick, { passive: false });
-      cell.addEventListener('touchstart', handleCellClick, { passive: false });
     });
 
-    resetButton.addEventListener('click', resetGame);
-    resetButton.addEventListener('pointerdown', event => {
-      if (event.cancelable) {
-        event.preventDefault();
+    function handleResetClick(event) {
+      const now = Date.now();
+      if (event.type === 'touchstart') {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
       }
-      resetGame(event);
-    }, { passive: false });
-    resetButton.addEventListener('touchstart', event => {
-      if (event.cancelable) {
-        event.preventDefault();
+      
+      if (event.type === 'click' && isTouchDevice && now - lastInputTime < 500) {
+        return;
       }
-      resetGame(event);
-    }, { passive: false });
+      
+      lastInputTime = now;
+      resetGame();
+    }
+
+    resetButton.addEventListener('touchstart', handleResetClick, { passive: false, capture: true });
+    resetButton.addEventListener('click', handleResetClick);
   </script>
 </body>
 </html>

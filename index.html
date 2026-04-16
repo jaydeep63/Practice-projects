@@ -4,7 +4,163 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tic Tac Toe</title>
-  <link rel="stylesheet" href="styles.css" />
+  <style>
+    :root {
+      --bg: #111827;
+      --surface: #1f2937;
+      --surface-strong: #374151;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --win: #16a34a;
+      --lose: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1d4ed8, #111827 45%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app-shell {
+      width: min(420px, calc(100vw - 32px));
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 22px 60px rgba(15, 23, 42, 0.4);
+    }
+
+    h1 {
+      margin: 0 0 18px;
+      font-size: clamp(2rem, 4vw, 2.5rem);
+      text-align: center;
+    }
+
+    .status-panel {
+      margin-bottom: 18px;
+      text-align: center;
+    }
+
+    #status {
+      margin: 0;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .cell {
+      aspect-ratio: 1 / 1;
+      border: 2px solid rgba(148, 163, 184, 0.22);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: clamp(2.5rem, 5vw, 3.5rem);
+      font-weight: 700;
+      transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+      cursor: pointer;
+      border-radius: 14px;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cell:hover {
+      transform: translateY(-2px);
+      border-color: rgba(56, 189, 248, 0.65);
+    }
+
+    .cell:disabled {
+      cursor: default;
+      opacity: 0.8;
+    }
+
+    .controls {
+      margin-top: 22px;
+      display: flex;
+      justify-content: center;
+    }
+
+    #resetButton {
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 999px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #resetButton:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+    }
+
+    #confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .confetti-piece,
+    .popper-piece {
+      position: absolute;
+      width: 10px;
+      height: 14px;
+      opacity: 0;
+      animation: pop 1.1s ease-out forwards;
+    }
+
+    .confetti-piece {
+      background-color: currentColor;
+      border-radius: 3px;
+    }
+
+    .popper-piece {
+      width: 6px;
+      height: 18px;
+      background-color: currentColor;
+      border-radius: 2px;
+    }
+
+    @keyframes pop {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+      }
+      40% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(260px) rotate(720deg);
+        opacity: 0;
+      }
+    }
+
+    .status-win {
+      color: var(--win);
+    }
+
+    .status-draw {
+      color: var(--muted);
+    }
+  </style>
 </head>
 <body>
   <main class="app-shell">
@@ -31,6 +187,170 @@
   </main>
 
   <div id="confetti" aria-hidden="true"></div>
-  <script src="script.js"></script>
+
+  <script>
+    const statusText = document.getElementById('status');
+    const cells = Array.from(document.querySelectorAll('.cell'));
+    const resetButton = document.getElementById('resetButton');
+    const confettiContainer = document.getElementById('confetti');
+
+    const winningPatterns = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
+
+    let boardState = Array(9).fill('');
+    let currentPlayer = 'X';
+    let gameActive = true;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+          return false;
+        }
+        audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      return audioCtx.state === 'running';
+    }
+
+    function playTone(freq, dur, type = 'triangle') {
+      if (!audioCtx || audioCtx.state !== 'running') return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + dur);
+    }
+
+    function spawnConfetti() {
+      confettiContainer.innerHTML = '';
+      const colors = ['#38bdf8', '#fbbf24', '#34d399', '#f87171', '#a78bfa'];
+      
+      for (let i = 0; i < 40; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.left = Math.random() * 100 + '%';
+        piece.style.top = (Math.random() * 20) + '%';
+        piece.style.animationDelay = Math.random() * 0.2 + 's';
+        confettiContainer.appendChild(piece);
+      }
+      setTimeout(() => confettiContainer.innerHTML = '', 1200);
+    }
+
+    let lastInputTime = 0;
+    let isTouchDevice = false;
+
+    function getCellFromEvent(event) {
+      if (event.target.classList.contains('cell')) {
+        return event.target;
+      }
+      return event.currentTarget;
+    }
+
+    function handleCellClick(event) {
+      const now = Date.now();
+      
+      if (event.type.startsWith('touch')) {
+        isTouchDevice = true;
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+      }
+      
+      if (event.type === 'click' && isTouchDevice && now - lastInputTime < 500) {
+        return;
+      }
+      
+      if (now - lastInputTime < 100) {
+        return;
+      }
+      
+      lastInputTime = now;
+
+      const cell = getCellFromEvent(event);
+      const index = cell.dataset.index;
+
+      if (!gameActive || boardState[index] !== '') return;
+
+      initAudio();
+
+      boardState[index] = currentPlayer;
+      cell.textContent = currentPlayer;
+      cell.disabled = true;
+
+      playTone(currentPlayer === 'X' ? 440 : 660, 0.1);
+
+      if (checkWin()) {
+        gameActive = false;
+        statusText.textContent = `Player ${currentPlayer} Wins!`;
+        statusText.classList.add('status-win');
+        playTone(120, 0.8, 'sawtooth');
+        spawnConfetti();
+      } else if (boardState.every(s => s !== '')) {
+        gameActive = false;
+        statusText.textContent = "It's a Draw!";
+        statusText.classList.add('status-draw');
+      } else {
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        statusText.textContent = `Player ${currentPlayer}'s turn`;
+      }
+    }
+
+    function checkWin() {
+      return winningPatterns.some(pattern => {
+        return pattern.every(index => boardState[index] === currentPlayer);
+      });
+    }
+
+    function resetGame() {
+      boardState = Array(9).fill('');
+      currentPlayer = 'X';
+      gameActive = true;
+      statusText.textContent = "Player X's turn";
+      statusText.className = '';
+      cells.forEach(cell => {
+        cell.textContent = '';
+        cell.disabled = false;
+      });
+    }
+
+    cells.forEach(cell => {
+      cell.addEventListener('touchstart', handleCellClick, { passive: false, capture: true });
+      cell.addEventListener('click', handleCellClick);
+    });
+
+    function handleResetClick(event) {
+      const now = Date.now();
+      if (event.type === 'touchstart') {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+      }
+      
+      if (event.type === 'click' && isTouchDevice && now - lastInputTime < 500) {
+        return;
+      }
+      
+      lastInputTime = now;
+      resetGame();
+    }
+
+    resetButton.addEventListener('touchstart', handleResetClick, { passive: false, capture: true });
+    resetButton.addEventListener('click', handleResetClick);
+
+    resetGame();
+  </script>
 </body>
 </html>
+
