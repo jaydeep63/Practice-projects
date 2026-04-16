@@ -68,7 +68,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      touch-action: manipulation;
+      touch-action: none;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -92,7 +92,7 @@
       font-weight: 600;
       cursor: pointer;
       transition: transform 0.15s ease;
-      touch-action: manipulation;
+      touch-action: none;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -119,19 +119,19 @@
     <p id="status">Player X's turn</p>
 
     <section class="board">
-      <button class="cell" data-index="0"></button>
-      <button class="cell" data-index="1"></button>
-      <button class="cell" data-index="2"></button>
-      <button class="cell" data-index="3"></button>
-      <button class="cell" data-index="4"></button>
-      <button class="cell" data-index="5"></button>
-      <button class="cell" data-index="6"></button>
-      <button class="cell" data-index="7"></button>
-      <button class="cell" data-index="8"></button>
+      <button type="button" class="cell" data-index="0"></button>
+      <button type="button" class="cell" data-index="1"></button>
+      <button type="button" class="cell" data-index="2"></button>
+      <button type="button" class="cell" data-index="3"></button>
+      <button type="button" class="cell" data-index="4"></button>
+      <button type="button" class="cell" data-index="5"></button>
+      <button type="button" class="cell" data-index="6"></button>
+      <button type="button" class="cell" data-index="7"></button>
+      <button type="button" class="cell" data-index="8"></button>
     </section>
 
     <div class="controls">
-      <button id="resetButton">Restart Game</button>
+      <button type="button" id="resetButton">Restart Game</button>
     </div>
   </main>
 
@@ -200,8 +200,25 @@
     }
 
     // --- Game Logic ---
-    function handleCellClick(e) {
-      const cell = e.target;
+    let lastTouchTime = 0;
+
+    function getCellFromEvent(event) {
+      return event.currentTarget || event.target;
+    }
+
+    function handleCellClick(event) {
+      if (event.type === 'touchstart' || event.type === 'pointerdown') {
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        lastTouchTime = Date.now();
+      }
+
+      if (event.type === 'click' && Date.now() - lastTouchTime < 700) {
+        return;
+      }
+
+      const cell = getCellFromEvent(event);
       const index = cell.dataset.index;
 
       if (!gameActive || boardState[index] !== '') return;
@@ -251,15 +268,21 @@
 
     cells.forEach(cell => {
       cell.addEventListener('click', handleCellClick);
-      cell.addEventListener('touchend', event => {
-        event.preventDefault();
-        handleCellClick(event);
-      }, { passive: false });
+      cell.addEventListener('pointerdown', handleCellClick, { passive: false });
+      cell.addEventListener('touchstart', handleCellClick, { passive: false });
     });
 
     resetButton.addEventListener('click', resetGame);
-    resetButton.addEventListener('touchend', event => {
-      event.preventDefault();
+    resetButton.addEventListener('pointerdown', event => {
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      resetGame(event);
+    }, { passive: false });
+    resetButton.addEventListener('touchstart', event => {
+      if (event.cancelable) {
+        event.preventDefault();
+      }
       resetGame(event);
     }, { passive: false });
   </script>

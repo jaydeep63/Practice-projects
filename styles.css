@@ -66,7 +66,8 @@ h1 {
   transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
   border-radius: 14px;
-  touch-action: manipulation;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .cell:hover {
@@ -94,7 +95,8 @@ h1 {
   font-size: 1rem;
   cursor: pointer;
   transition: transform 0.15s ease, filter 0.15s ease;
-  touch-action: manipulation;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #resetButton:hover {

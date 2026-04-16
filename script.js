@@ -134,15 +134,34 @@ function initializeGame() {
   });
 }
 
+let lastTouchTime = 0;
+
+function getCellFromEvent(event) {
+  if (event.currentTarget) {
+    return event.currentTarget;
+  }
+  return event.target;
+}
+
 function handleCellClick(event) {
-  const cell = event.target;
+  if (event.type === 'touchstart' || event.type === 'pointerdown') {
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    lastTouchTime = Date.now();
+  }
+
+  if (event.type === 'click' && Date.now() - lastTouchTime < 700) {
+    return;
+  }
+
+  const cell = getCellFromEvent(event);
   const index = Number(cell.dataset.index);
 
   if (!gameActive || boardState[index]) {
     return;
   }
 
-  // Ensure AudioContext is active on the first click
   getAudioContext();
 
   boardState[index] = currentPlayer;
@@ -181,27 +200,20 @@ function checkForWinner() {
   });
 }
 
-function handleInteractiveInput(event) {
-  if (event.cancelable) {
-    event.preventDefault();
-  }
-  handleCellClick(event);
-}
-
 cells.forEach((cell) => {
   cell.addEventListener('click', handleCellClick);
-  cell.addEventListener('pointerup', handleInteractiveInput, { passive: false });
-  cell.addEventListener('touchend', handleInteractiveInput, { passive: false });
+  cell.addEventListener('pointerdown', handleCellClick, { passive: false });
+  cell.addEventListener('touchstart', handleCellClick, { passive: false });
 });
 
 resetButton.addEventListener('click', initializeGame);
-resetButton.addEventListener('pointerup', (event) => {
+resetButton.addEventListener('pointerdown', (event) => {
   if (event.cancelable) {
     event.preventDefault();
   }
   initializeGame(event);
 }, { passive: false });
-resetButton.addEventListener('touchend', (event) => {
+resetButton.addEventListener('touchstart', (event) => {
   if (event.cancelable) {
     event.preventDefault();
   }
