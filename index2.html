@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tic Tac Toe</title>
+  <style>
+    /* CSS moved inside for compatibility */
+    :root {
+      --bg: #111827;
+      --surface: #1f2937;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --win: #16a34a;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      background: radial-gradient(circle at top, #1d4ed8, #111827 45%);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .app-shell {
+      width: min(420px, calc(100vw - 32px));
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 22px 60px rgba(15, 23, 42, 0.4);
+    }
+
+    h1 { text-align: center; margin-bottom: 18px; }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .cell {
+      aspect-ratio: 1 / 1;
+      border: 2px solid rgba(148, 163, 184, 0.22);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: 3rem;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 14px;
+      transition: transform 0.1s;
+    }
+
+    .cell:hover { transform: scale(1.02); border-color: var(--accent); }
+    
+    #status { text-align: center; color: var(--accent); margin-bottom: 15px; font-weight: bold; }
+
+    .controls { margin-top: 20px; display: flex; justify-content: center; }
+
+    #resetButton {
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      color: white; border: none; padding: 12px 24px;
+      border-radius: 50px; cursor: pointer;
+    }
+
+    #confetti { position: fixed; inset: 0; pointer-events: none; }
+    .status-win { color: var(--win) !important; }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <h1>Tic Tac Toe</h1>
+    <p id="status">Player X's turn</p>
+
+    <section class="board">
+      <button class="cell" data-index="0"></button>
+      <button class="cell" data-index="1"></button>
+      <button class="cell" data-index="2"></button>
+      <button class="cell" data-index="3"></button>
+      <button class="cell" data-index="4"></button>
+      <button class="cell" data-index="5"></button>
+      <button class="cell" data-index="6"></button>
+      <button class="cell" data-index="7"></button>
+      <button class="cell" data-index="8"></button>
+    </section>
+
+    <div class="controls">
+      <button id="resetButton">Restart Game</button>
+    </div>
+  </main>
+
+  <div id="confetti"></div>
+
+  <script>
+    /* JS moved inside for compatibility */
+    const statusText = document.getElementById('status');
+    const cells = Array.from(document.querySelectorAll('.cell'));
+    const resetButton = document.getElementById('resetButton');
+    
+    let boardState = Array(9).fill('');
+    let currentPlayer = 'X';
+    let gameActive = true;
+
+    function handleCellClick(e) {
+      const index = e.target.dataset.index;
+      if (!gameActive || boardState[index]) return;
+
+      boardState[index] = currentPlayer;
+      e.target.textContent = currentPlayer;
+      
+      if (checkWin()) {
+        statusText.textContent = `Player ${currentPlayer} Wins!`;
+        statusText.classList.add('status-win');
+        gameActive = false;
+      } else if (boardState.every(cell => cell !== '')) {
+        statusText.textContent = "It's a Draw!";
+        gameActive = false;
+      } else {
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        statusText.textContent = `Player ${currentPlayer}'s turn`;
+      }
+    }
+
+    function checkWin() {
+      const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+      return wins.some(p => boardState[p[0]] && boardState[p[0]] === boardState[p[1]] && boardState[p[0]] === boardState[p[2]]);
+    }
+
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+    resetButton.addEventListener('click', () => {
+      boardState.fill('');
+      cells.forEach(c => c.textContent = '');
+      gameActive = true;
+      currentPlayer = 'X';
+      statusText.textContent = "Player X's turn";
+      statusText.className = '';
+    });
+  </script>
+</body>
+</html>
